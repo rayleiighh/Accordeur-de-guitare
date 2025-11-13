@@ -307,7 +307,7 @@ def hz_to_note(frequency: float,
         cents = cents_difference(frequency, freq_target)
         return note_name, cents
     else:
-        return note_name # type: ignore
+        return note_name
 
 
 # =============================================================================

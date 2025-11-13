@@ -167,7 +167,7 @@ def find_peak_acf(acf: np.ndarray,
     # Trouver le pic maximum
     peak_idx = np.argmax(acf_region) + tau_min
     
-    return peak_idx # type: ignore
+    return peak_idx
 
 
 def parabolic_interpolation(x: np.ndarray, peak_idx: int) -> float:
@@ -399,7 +399,7 @@ def absolute_threshold_yin(cmnd: np.ndarray,
     if len(region) > 0:
         min_idx = np.argmin(region) + tau_min
         if cmnd[min_idx] < 0.5:  # Seuil de secours
-            return min_idx # type: ignore
+            return min_idx
     
     return None
 
@@ -806,7 +806,7 @@ def run_tests():
     
     # Simuler des détections avec un outlier
     history_test = [440.0, 441.0, 220.0, 440.5, 439.5, 440.2]
-    smoothed = median_filter(history_test, window_size=5) # type: ignore
+    smoothed = median_filter(history_test, window_size=5)
     
     print(f"Historique : {history_test}")
     print(f"Médiane (fenêtre=5) : {smoothed:.2f} Hz")

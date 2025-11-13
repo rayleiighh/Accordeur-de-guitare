@@ -19,6 +19,7 @@ Accordeur numérique capable de détecter la fréquence fondamentale (f₀) d'un
 ## 📚 Références au cours
 
 Ce projet applique les concepts des chapitres suivants :
+
 - **Chapitre 1** : Représentation des signaux analogiques
 - **Chapitre 2** : Transformée de Fourier
 - **Chapitre 5** : Filtres numériques
@@ -30,6 +31,7 @@ Ce projet applique les concepts des chapitres suivants :
 ## 🚀 Installation
 
 ### Prérequis
+
 - Python 3.10 ou supérieur
 - pip
 
@@ -43,7 +45,7 @@ pip install -r requirements.txt
 
 ## 📦 Structure du projet
 
-```
+```text
 accordeur-guitare/
 ├── signal_generation.py     # ✅ Module de génération de signaux (FAIT)
 ├── music_theory.py          # 🔜 Utilitaires musicaux (À FAIRE)
@@ -121,6 +123,7 @@ Cela exécute tous les tests automatiques et génère les visualisations.
 ## 📖 Documentation
 
 Chaque module contient :
+
 - ✅ Docstrings détaillées
 - ✅ Références explicites au cours EPHEC
 - ✅ Exemples d'utilisation

@@ -1,141 +1,224 @@
-# 🎸 Accordeur de Guitare Numérique
+# 🎸 Accordeur de Guitare Numérique - VERSION MVP
 
-## 📚 Projet Signaux III - EPHEC
+## 📋 Projet Signaux III - EPHEC
 
-Accordeur numérique capable de détecter la fréquence fondamentale (f₀) d'une corde de guitare et d'indiquer si elle est juste, trop basse ou trop haute.
+**Objectif** : Détection de la fréquence fondamentale (f₀) d'une corde de guitare et indication de l'accordage (juste/trop bas/trop haut).
 
----
-
-## 🎯 Objectifs du projet
-
-- **Acquisition** : Capturer le signal audio via microphone (48 kHz, mono)
-- **Prétraitement** : Filtrage anti-bruit (bande 70-1500 Hz, notch 50 Hz)
-- **Détection f₀** : Algorithmes autocorrélation et YIN
-- **Mapping musical** : Conversion fréquence → note + écart en cents
-- **Interface** : Affichage temps réel "trop bas / juste / trop haut"
+**Étudiant** : Bac 3 TI - EPHEC  
+**Cours** : Signaux III  
+**Date** : Novembre 2025
 
 ---
 
-## 📚 Références au cours
+## 🎯 Fonctionnalités (MVP)
 
-Ce projet applique les concepts des chapitres suivants :
+✅ Détection de f₀ par autocorrélation  
+✅ Association à la note de guitare (EADGBE)  
+✅ Calcul de l'écart en cents  
+✅ Indication : juste / trop bas / trop haut  
+✅ **Menu de sélection** de fichier (nouveau !)  
+✅ **Enregistrement en direct** via micro (nouveau !)
 
-- **Chapitre 1** : Représentation des signaux analogiques
-- **Chapitre 2** : Transformée de Fourier
-- **Chapitre 5** : Filtres numériques
-- **Chapitre 6** : Échantillonnage (théorème de Shannon-Nyquist)
-- **Chapitre 7** : Analyse spectrale (FFT, spectrogramme)
+---
+
+## 📦 Structure du projet
+
+```
+accordeur_mvp/
+├── src/
+│   ├── pitch_detector.py    # Détection f₀ (autocorrélation)
+│   └── music_utils.py       # Conversions Hz → Note + cents
+│
+├── test_accordeur.py        # Script avec menu de sélection
+├── enregistrer_live.py      # Enregistrement micro en direct
+├── requirements.txt         # Dépendances Python
+└── README.md               # Ce fichier
+```
 
 ---
 
 ## 🚀 Installation
 
 ### Prérequis
-
-- Python 3.10 ou supérieur
+- Python 3.10+
 - pip
+- **Micro fonctionnel** (pour enregistrement live)
 
-### Installation des dépendances
+### Dépendances
 
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## 📦 Structure du projet
-
-```text
-accordeur-guitare/
-├── signal_generation.py     # ✅ Module de génération de signaux (FAIT)
-├── music_theory.py          # 🔜 Utilitaires musicaux (À FAIRE)
-├── preprocessing.py         # 🔜 Filtrage (À FAIRE)
-├── pitch_detection.py       # 🔜 Détection f₀ (À FAIRE)
-├── requirements.txt
-└── README.md
+**Note Windows** : Si `sounddevice` pose problème, installez d'abord :
+```bash
+pip install pipwin
+pipwin install pyaudio
 ```
 
 ---
 
-## 🎯 Module 1 : Génération de signaux (TERMINÉ)
+## 💻 Utilisation
 
-### Utilisation
-
-```python
-from signal_generation import *
-
-# Générer une sinusoïde pure (corde E2)
-signal, time = generate_pure_sine(82.41, duration=2.0)
-
-# Générer un signal réaliste de guitare avec harmoniques
-signal_guitar, time = generate_guitar_string(110.0, n_harmonics=8)
-
-# Ajouter du bruit
-signal_noisy = add_noise(signal_guitar, snr_db=15)
-
-# Visualiser
-plot_signal_analysis(signal_guitar, title="Corde A2")
-```
-
-### Tests intégrés
-
-Pour tester le module :
+### Mode 1 : Analyse de fichiers WAV (menu interactif)
 
 ```bash
-python signal_generation.py
+python test_accordeur.py
 ```
 
-Cela exécute tous les tests automatiques et génère les visualisations.
+**Menu** :
+```
+=== MENU ===
+1. bonne_accord.wav
+2. accord_basse.wav  
+3. accord_haute.wav
+4. Analyser TOUS les fichiers
+0. Quitter
+
+Votre choix : _
+```
+
+Le menu détecte automatiquement tous les fichiers `.wav` dans `data/raw/`.
 
 ---
 
-## 🎼 Fréquences des cordes de guitare
+### Mode 2 : Enregistrement en direct
 
-| Corde | Note | Fréquence (Hz) |
-|-------|------|----------------|
-| 6ème  | E2   | 82.41          |
-| 5ème  | A2   | 110.00         |
-| 4ème  | D3   | 146.83         |
-| 3ème  | G3   | 196.00         |
-| 2ème  | B3   | 246.94         |
-| 1ère  | E4   | 329.63         |
+```bash
+python enregistrer_live.py
+```
 
----
+**Étapes** :
+1. Le script détecte votre micro
+2. Appuyez sur **Entrée** pour démarrer
+3. **Jouez UNE corde** de guitare
+4. Appuyez sur **Entrée** pour arrêter
+5. Analyse automatique + résultats
 
-## 📊 Paramètres d'échantillonnage
+**Sortie exemple** :
+```
+🔴 ENREGISTREMENT EN COURS...
 
-- **Fréquence d'échantillonnage (Fs)** : 48 000 Hz
-- **Période d'échantillonnage (Te)** : 20.83 μs
-- **Justification** : Fs >> 2 × fmax (théorème de Shannon, Cours Chap. 6 p.166-167)
+📊 ANALYSE DE L'ENREGISTREMENT
+   Fenêtre 1 :  82.18 Hz → E2 (  -4.9 cents) ✓ JUSTE
+   📊 Erreur absolue moyenne : 4.87 cents
+   ✓ EXCELLENT (objectif ≤ 10 cents)
+```
 
----
-
-## 🔜 Prochaines étapes
-
-1. ✅ **Module 1** : Génération de signaux → **TERMINÉ**
-2. 🔜 **Module 2** : Utilitaires musicaux (Hz ↔ Note, cents)
-3. 🔜 **Module 3** : Prétraitement (filtres passe-bande, notch)
-4. 🔜 **Module 4** : Détection f₀ (autocorrélation, YIN)
-5. 🔜 **Module 5** : Temps réel
+**Conseil** : Jouez UNE seule corde à la fois, pas d'accord complet !
 
 ---
 
-## 📖 Documentation
+### Mode 3 : Utilisation dans votre code
 
-Chaque module contient :
+```python
+import soundfile as sf
+from src.pitch_detector import detect_f0
+from src.music_utils import identify_string, get_tuning_status
 
-- ✅ Docstrings détaillées
-- ✅ Références explicites au cours EPHEC
-- ✅ Exemples d'utilisation
-- ✅ Tests intégrés
+# 1. Charger un fichier audio
+signal, fs = sf.read('guitare.wav')
+
+# 2. Prendre une fenêtre (4096 échantillons)
+frame = signal[10000:14096]
+
+# 3. Détecter la fréquence
+f0 = detect_f0(frame, fs=fs)
+
+# 4. Identifier la corde
+if f0:
+    note, cents = identify_string(f0)
+    status = get_tuning_status(cents)
+    
+    print(f"Note : {note}")
+    print(f"Écart : {cents:+.1f} cents")
+    print(f"Status : {status}")
+```
 
 ---
 
-## 👨‍🎓 Auteur
+## 📊 Algorithme
 
-Étudiant en Bac 3 TI - EPHEC  
-Cours : Signaux III  
-Date : Novembre 2025
+### Pipeline complet
+
+```
+🎤 Signal audio (48 kHz)
+    ↓
+🔧 Prétraitement
+    • Filtre passe-bande (70-1500 Hz)
+    • Fenêtrage de Hann
+    ↓
+🎯 Détection f₀
+    • Autocorrélation : R(τ) = Σ s(t)×s(t+τ)
+    • Recherche du pic → période
+    • Interpolation parabolique
+    ↓
+🎼 Conversion musicale
+    • Identification de la corde (E2, A2, D3, G3, B3, E4)
+    • Calcul de l'écart : cents = 1200 × log₂(f/f₀)
+    ↓
+💬 Affichage
+    • Note + écart en cents
+    • Status : juste / trop bas / trop haut
+```
+
+### Formules clés
+
+**Autocorrélation** (Cours Chap. 7 p.195-197) :
+```
+R(τ) = Σ s(t) × s(t+τ)
+```
+
+**Cents** (écart musical) :
+```
+cents = 1200 × log₂(f_mesurée / f_cible)
+```
+
+**Shannon-Nyquist** (Cours Chap. 6 p.166-167) :
+```
+Fs ≥ 2 × fmax
+48000 Hz ≥ 2 × 1500 Hz ✓
+```
+
+---
+
+## 📚 Références au cours
+
+- **Chapitre 2** : Transformée de Fourier (p.38-57)
+- **Chapitre 5** : Filtres numériques (p.145-156)
+- **Chapitre 6** : Échantillonnage (p.166-177)
+- **Chapitre 7** : Autocorrélation (p.195-197)
+
+---
+
+## 🎯 Résultats
+
+**Objectif** : MAE ≤ 10 cents
+
+**Résultats obtenus** :
+- Corde bien accordée : **MAE = 5-6 cents** ✓ EXCELLENT
+- Détection stable et robuste
+- Temps de traitement : <100 ms par fenêtre
+
+---
+
+## 🔧 Paramètres techniques
+
+| Paramètre | Valeur | Justification |
+|-----------|--------|---------------|
+| Fréquence d'échantillonnage | 48 kHz | Shannon : Fs ≥ 2×fmax |
+| Taille de fenêtre | 4096 échantillons | ~85 ms (compromis temps/fréquence) |
+| Bande passante | 70-1500 Hz | Plage guitare + harmoniques |
+| Fenêtre | Hann | Réduction effets de bord (Cours p.192) |
+| Filtre | Butterworth ordre 4 | Réponse plate (Cours p.150) |
+
+---
+
+## ⚠️ Limites
+
+- Signal mono uniquement (1 corde à la fois)
+- Environnement calme recommandé
+- Pas de polyphonie (plusieurs notes simultanées)
 
 ---
 

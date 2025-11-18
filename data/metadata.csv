@@ -1,4 +1,0 @@
-filename,note_target,freq_target,cents_offset,duration,fs,description
-bonne_accord.wav,E2,82.41,0,29.46,48000,Corde E2 bien accordée
-accord_basse.wav,E2,80.06,-50,27.13,48000,Corde E2 trop basse
-accord_haute.wav,E2,84.82,+50,26.36,48000,Corde E2 trop haute

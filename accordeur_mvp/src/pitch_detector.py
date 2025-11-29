@@ -31,39 +31,51 @@ F0_MAX = 1500.0         # Fréquence max guitare + harmoniques (Hz)
 # PRÉTRAITEMENT MINIMAL
 # =============================================================================
 
-def preprocess_signal(signal: np.ndarray, fs: int = FS) -> np.ndarray:
+def preprocess_signal(signal: np.ndarray, fs: int = FS, enable_notch: bool = True) -> np.ndarray:
     """
-    Prétraite le signal : filtre passe-bande + fenêtrage.
-    
+    Prétraite le signal : filtre notch + filtre passe-bande + fenêtrage.
+
     Justification (Cours) :
+    - Filtre notch 50 Hz : Réduction bruit secteur (référence consignes projet)
     - Filtre passe-bande : Chapitre 5 p.150 (Butterworth)
     - Fenêtre de Hann : Chapitre 7 p.192 (réduction effets de bord)
-    
+
     Parameters
     ----------
     signal : np.ndarray
         Signal brut
     fs : int
         Fréquence d'échantillonnage
-    
+    enable_notch : bool
+        Activer le filtre notch 50 Hz (défaut: True)
+
     Returns
     -------
     processed : np.ndarray
         Signal prétraité
     """
-    # 1. Filtre passe-bande (70-1500 Hz)
+    # 1. Filtre notch 50 Hz (optionnel - bruit secteur)
+    # Référence : Consignes projet (cadre_projet.md)
+    # Réduction du bruit électrique 50 Hz (Europe) ou 60 Hz (USA)
+    if enable_notch:
+        # Q-factor = 30 : bande étroite autour de 50 Hz
+        # Atténuation ~-40 dB à 50 Hz, pas d'impact sur 70-1500 Hz
+        b_notch, a_notch = scipy_signal.iirnotch(50.0, Q=30, fs=fs)
+        signal = scipy_signal.filtfilt(b_notch, a_notch, signal)
+
+    # 2. Filtre passe-bande (70-1500 Hz)
     # Cours Chap. 5 p.150 : Butterworth = réponse plate
     nyquist = fs / 2.0
     low = 70.0 / nyquist
     high = 1500.0 / nyquist
     b, a = scipy_signal.butter(4, [low, high], btype='bandpass')
     filtered = scipy_signal.filtfilt(b, a, signal)
-    
-    # 2. Fenêtrage (Hann)
+
+    # 3. Fenêtrage (Hann)
     # Cours Chap. 7 p.192 : réduit fuites spectrales
     window = np.hanning(len(filtered))
     windowed = filtered * window
-    
+
     return windowed
 
 

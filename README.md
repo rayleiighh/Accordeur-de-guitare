@@ -25,12 +25,14 @@
 
 ```
 accordeur_mvp/
+├── main.py                  # 🎯 INTERFACE PRINCIPALE (Menu unifié)
+├── eval_pitch.py            # 📊 Script d'évaluation automatique
 ├── src/
-│   ├── pitch_detector.py    # Détection f₀ (autocorrélation)
-│   └── music_utils.py       # Conversions Hz → Note + cents
-│
-├── test_accordeur.py        # Script avec menu de sélection
-├── enregistrer_live.py      # Enregistrement micro en direct
+│   ├── pitch_detector.py    # Détection f₀ (autocorrélation + notch 50Hz)
+│   ├── music_utils.py       # Conversions Hz → Note + cents
+│   └── visualiser.py        # Graphiques FFT (bonus)
+├── data/raw/                # Fichiers de test WAV
+├── legacy/                  # Anciens scripts (obsolètes)
 ├── requirements.txt         # Dépendances Python
 └── README.md               # Ce fichier
 ```
@@ -39,73 +41,232 @@ accordeur_mvp/
 
 ## 🚀 Installation
 
-### Prérequis
-- Python 3.10+
-- pip
-- **Micro fonctionnel** (pour enregistrement live)
+### Étape 1 : Vérifier Python
 
-### Dépendances
+**Version requise** : Python 3.10 ou supérieur
 
 ```bash
+python --version
+```
+
+Si Python n'est pas installé :
+- **Windows** : [python.org/downloads](https://www.python.org/downloads/)
+- **Mac** : `brew install python3`
+- **Linux** : `sudo apt install python3 python3-pip`
+
+---
+
+### Étape 2 : Installer les dépendances
+
+**Dans le dossier du projet :**
+
+```bash
+cd accordeur_mvp
 pip install -r requirements.txt
 ```
 
-**Note Windows** : Si `sounddevice` pose problème, installez d'abord :
+**Dépendances installées :**
+- `numpy` : Calculs numériques
+- `scipy` : Filtres (Butterworth, notch)
+- `soundfile` : Lecture/écriture fichiers WAV
+- `sounddevice` : Capture audio microphone
+- `matplotlib` : Visualisations (optionnel)
+
+---
+
+### Étape 3 : Vérifier l'installation
+
+**Test rapide :**
+
+```bash
+python -c "import numpy, scipy, soundfile, sounddevice; print('✓ Toutes les dépendances sont installées !')"
+```
+
+---
+
+### ⚠️ Troubleshooting
+
+#### Problème : `sounddevice` ne s'installe pas (Windows)
+
+**Solution 1** : Installer via pipwin
 ```bash
 pip install pipwin
 pipwin install pyaudio
+pip install sounddevice
 ```
+
+**Solution 2** : Utiliser l'installeur binaire
+- Télécharger [PortAudio](http://www.portaudio.com/)
+- Réessayer `pip install sounddevice`
+
+#### Problème : "No module named 'src'"
+
+**Cause** : Vous n'êtes pas dans le bon dossier
+
+**Solution** :
+```bash
+cd accordeur_mvp  # Se placer dans le dossier du projet
+python main.py    # Lancer depuis ce dossier
+```
+
+#### Problème : Micro non détecté
+
+**Vérifier les périphériques audio :**
+```python
+import sounddevice as sd
+print(sd.query_devices())
+```
+
+Si le micro n'apparaît pas :
+- Vérifier les permissions micro (Paramètres système)
+- Réinstaller les pilotes audio
+- Utiliser le mode fichiers WAV à la place
 
 ---
 
 ## 💻 Utilisation
 
-### Mode 1 : Analyse de fichiers WAV (menu interactif)
+### 🎯 INTERFACE PRINCIPALE (Recommandé)
+
+**Lancer l'accordeur :**
 
 ```bash
-python test_accordeur.py
+cd accordeur_mvp
+python main.py
 ```
 
-**Menu** :
+**Menu principal :**
 ```
-=== MENU ===
-1. bonne_accord.wav
-2. accord_basse.wav  
-3. accord_haute.wav
-4. Analyser TOUS les fichiers
-0. Quitter
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║          ACCORDEUR DE GUITARE NUMÉRIQUE                  ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+Détection de fréquence fondamentale par autocorrélation
+Cours : Signaux III - EPHEC
+
+Références académiques :
+  • Chap. 2 p.52  : Théorème de Wiener-Khinchin (FFT)
+  • Chap. 5 p.150 : Filtre Butterworth passe-bande
+  • Chap. 6 p.166 : Théorème de Shannon-Nyquist (Fs=48kHz)
+  • Chap. 7 p.195 : Autocorrélation pour détection f₀
+
+============================================================
+
+  1. Enregistrer avec le micro
+  2. Charger un fichier WAV
+  0. Quitter
 
 Votre choix : _
 ```
 
-Le menu détecte automatiquement tous les fichiers `.wav` dans `data/raw/`.
-
 ---
 
-### Mode 2 : Enregistrement en direct
-
-```bash
-python enregistrer_live.py
-```
+### Mode 1 : Enregistrement en direct (micro)
 
 **Étapes** :
-1. Le script détecte votre micro
-2. Appuyez sur **Entrée** pour démarrer
-3. **Jouez UNE corde** de guitare
-4. Appuyez sur **Entrée** pour arrêter
-5. Analyse automatique + résultats
+1. Choisir option **1** dans le menu principal
+2. Le script détecte votre micro automatiquement
+3. Appuyez sur **Entrée** pour démarrer l'enregistrement
+4. **Jouez UNE corde** de guitare (laissez sonner ~2 secondes)
+5. Appuyez sur **Entrée** pour arrêter
+6. Optionnel : Sauvegarder l'enregistrement
+7. Résultats affichés automatiquement
 
 **Sortie exemple** :
 ```
 🔴 ENREGISTREMENT EN COURS...
 
 📊 ANALYSE DE L'ENREGISTREMENT
+   • Durée : 2.34 s
+   • Échantillons : 112320
+   • Fréquence d'échantillonnage : 48000 Hz
+
+   Analyse de plusieurs fenêtres :
+
    Fenêtre 1 :  82.18 Hz → E2 (  -4.9 cents) ✓ JUSTE
-   📊 Erreur absolue moyenne : 4.87 cents
-   ✓ EXCELLENT (objectif ≤ 10 cents)
+   Fenêtre 2 :  82.05 Hz → E2 (  -7.3 cents) ✓ JUSTE
+   Fenêtre 3 :  82.41 Hz → E2 (  +0.0 cents) ✓ JUSTE
+
+   📊 Erreur absolue moyenne (MAE) : 4.07 cents
+   ✓ EXCELLENT (objectif ≤ 10 cents atteint)
+
+   🎸 Note détectée : E2
 ```
 
-**Conseil** : Jouez UNE seule corde à la fois, pas d'accord complet !
+---
+
+### Mode 2 : Analyse de fichiers WAV
+
+**Étapes** :
+1. Placer vos fichiers WAV dans `data/raw/`
+2. Choisir option **2** dans le menu principal
+3. Sélectionner un fichier ou analyser tous
+
+**Menu fichiers :**
+```
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║                  MENU DE SÉLECTION                       ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+Fichiers disponibles :
+
+  1. bonne_accord.wav
+  2. accord_basse.wav
+  3. accord_haute.wav
+  4. Analyser TOUS les fichiers
+  0. Quitter
+
+Votre choix : _
+```
+
+---
+
+### 📊 Évaluation automatique
+
+**Tester la précision sur tous les fichiers :**
+
+```bash
+cd accordeur_mvp
+python eval_pitch.py
+```
+
+**Sortie :**
+- `resultats_evaluation.csv` : Métriques par fichier (MAE, RMSE, etc.)
+- `resume_global.txt` : Statistiques agrégées
+- Affichage console : Validation critères MVP
+
+**Exemple de sortie** :
+```
+📊 ÉVALUATION AUTOMATIQUE - ACCORDEUR DE GUITARE
+============================================================
+
+  Analyse : bonne_accord.wav... ✓ MAE=4.87 cents
+  Analyse : accord_basse.wav... ✓ MAE=5.12 cents
+  Analyse : accord_haute.wav... ✓ MAE=6.23 cents
+
+📊 RÉSUMÉ GLOBAL
+============================================================
+
+   Fichiers analysés       : 3
+   Fenêtres totales        : 9
+
+   MAE globale             : 5.41 cents
+   MAE min/max             : 4.87 / 6.23 cents
+   RMSE globale            : 6.52 cents
+   Taux détection moyen    : 100.0 %
+
+🎯 ÉVALUATION PAR RAPPORT AUX CRITÈRES MVP
+--------------------------------------------------------------------
+
+   MAE ≤ 10 cents          : ✅ PASSÉ (5.41 cents)
+   Détection ≥ 95%         : ✅ PASSÉ (100.0%)
+
+   🎉 RÉSULTAT FINAL : ✅ TOUS LES CRITÈRES PASSÉS !
+```
 
 ---
 
@@ -145,6 +306,7 @@ if f0:
 🎤 Signal audio (48 kHz)
     ↓
 🔧 Prétraitement
+    • Filtre notch 50 Hz (bruit secteur)
     • Filtre passe-bande (70-1500 Hz)
     • Fenêtrage de Hann
     ↓

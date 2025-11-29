@@ -19,6 +19,7 @@ ENV/
 *.tmp
 *.log
 enregistrements/
+accordeur_mvp/resultats/
 
 # OS
 .DS_Store

@@ -19,8 +19,8 @@ Usage :
     python eval_pitch.py
 
 Sortie :
-    - resultats_evaluation.csv (par fichier)
-    - resume_global.txt (statistiques agrégées)
+    - resultats/resultats_evaluation.csv (par fichier)
+    - resultats/resume_global.txt (statistiques agrégées)
 
 Auteur : Projet Signaux III - EPHEC
 Date : Novembre 2025
@@ -36,8 +36,8 @@ from pathlib import Path
 # Ajouter src au path
 sys.path.insert(0, 'src')
 
-from pitch_detector import detect_f0, FS, FRAME_SIZE
-from music_utils import identify_string, cents_difference, GUITAR_STRINGS
+from src.pitch_detector import detect_f0, FS, FRAME_SIZE
+from src.music_utils import identify_string, cents_difference, GUITAR_STRINGS
 
 
 # =============================================================================
@@ -237,9 +237,13 @@ def main():
     print("-" * 70)
     print()
 
-    # 3. Générer le rapport CSV
+    # 3. Créer le dossier de résultats
+    results_dir = script_dir / 'resultats'
+    results_dir.mkdir(exist_ok=True)
+
+    # 4. Générer le rapport CSV
     if all_results:
-        csv_path = script_dir / 'resultats_evaluation.csv'
+        csv_path = results_dir / 'resultats_evaluation.csv'
 
         with open(csv_path, 'w', newline='', encoding='utf-8') as f:
             fieldnames = ['fichier', 'note_cible', 'cents_attendu', 'mae', 'rmse',
@@ -253,7 +257,7 @@ def main():
         print(f"✓ Résultats détaillés : {csv_path}")
         print()
 
-    # 4. Générer le résumé global
+    # 5. Générer le résumé global
     summary = generate_summary(all_results)
 
     if summary:
@@ -289,7 +293,7 @@ def main():
         print()
 
         # Sauvegarder le résumé
-        summary_path = script_dir / 'resume_global.txt'
+        summary_path = results_dir / 'resume_global.txt'
 
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write("RÉSUMÉ GLOBAL - ÉVALUATION ACCORDEUR\n")

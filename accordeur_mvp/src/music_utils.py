@@ -11,7 +11,7 @@ Date : Novembre 2025
 """
 
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 # =============================================================================
@@ -71,19 +71,19 @@ def cents_difference(freq_measured: float, freq_target: float) -> float:
     return 1200 * np.log2(freq_measured / freq_target)
 
 
-def identify_string(frequency: float) -> Tuple[str, float]:
+def identify_string(frequency: float) -> Tuple[Optional[str], float]:
     """
     Identifie la corde de guitare la plus proche.
-    
+
     Parameters
     ----------
     frequency : float
         Fréquence mesurée (Hz)
-    
+
     Returns
     -------
-    note : str
-        Note de la corde ('E2', 'A2', etc.)
+    note : str or None
+        Note de la corde ('E2', 'A2', etc.), ou None si aucune corde trouvée
     cents : float
         Écart en cents par rapport à la corde
     

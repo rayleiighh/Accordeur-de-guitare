@@ -27,12 +27,14 @@
 accordeur_mvp/
 ├── main.py                  # 🎯 INTERFACE PRINCIPALE (Menu unifié)
 ├── eval_pitch.py            # 📊 Script d'évaluation automatique
+├── test_setup.py            # Script de vérification installation
 ├── src/
 │   ├── pitch_detector.py    # Détection f₀ (autocorrélation + notch 50Hz)
 │   ├── music_utils.py       # Conversions Hz → Note + cents
 │   └── visualiser.py        # Graphiques FFT (bonus)
 ├── data/raw/                # Fichiers de test WAV
-├── legacy/                  # Anciens scripts (obsolètes)
+├── resultats/               # Sorties eval_pitch.py (CSV + TXT)
+├── docs/                    # Documentation technique
 ├── requirements.txt         # Dépendances Python
 └── README.md               # Ce fichier
 ```
@@ -146,11 +148,14 @@ python main.py
 Détection de fréquence fondamentale par autocorrélation
 Cours : Signaux III - EPHEC
 
-Références académiques :
-  • Chap. 2 p.52  : Théorème de Wiener-Khinchin (FFT)
-  • Chap. 5 p.150 : Filtre Butterworth passe-bande
-  • Chap. 6 p.166 : Théorème de Shannon-Nyquist (Fs=48kHz)
-  • Chap. 7 p.195 : Autocorrélation pour détection f₀
+Références cours EPHEC - Signaux III :
+  • Chap. 6 p.165 : Shannon-Nyquist → Fs = 48 kHz
+  • Chap. 7 p.184 : FFT Cooley-Tukey → Optimisation
+  • Chap. 5 p.156 : Convolution → Principe filtrage
+
+Extensions pratiques (hors cours) :
+  • Autocorrélation via FFT (périodicité)
+  • Butterworth passe-bande (70-1500 Hz)
 
 ============================================================
 
@@ -346,10 +351,39 @@ Fs ≥ 2 × fmax
 
 ## 📚 Références au cours
 
-- **Chapitre 2** : Transformée de Fourier (p.38-57)
-- **Chapitre 5** : Filtres numériques (p.145-156)
-- **Chapitre 6** : Échantillonnage (p.166-177)
-- **Chapitre 7** : Autocorrélation (p.195-197)
+### Concepts du cours appliqués
+
+- **Chapitre 6** (p.165-166) : Théorème de Shannon-Nyquist
+  - Application : Justifie le choix de Fs = 48 kHz
+  - Formule : Fs ≥ 2×fmax → 48000 ≥ 2×1500 ✅
+
+- **Chapitre 7** (p.184-188) : FFT Cooley-Tukey
+  - Application : Optimise le calcul de l'autocorrélation
+  - Complexité : O(N log N) au lieu de O(N²)
+
+- **Chapitre 5** (p.156) : Convolution
+  - Application : Principe de base du filtrage numérique
+  - Formule : y(n) = x(n) * g(n)
+
+### Extensions pratiques (hors cours)
+
+Ces techniques sont des **applications standards en DSP** des concepts vus au cours :
+
+- **Autocorrélation** : Application de la FFT pour détecter la périodicité
+  - Basée sur le théorème de Wiener-Khinchin (extension FFT)
+  - R(τ) = IFFT(|FFT(s)|²)
+
+- **Filtre Butterworth** : Filtre passe-bande standard en audio
+  - Type : Butterworth ordre 4 (réponse plate)
+  - Plage : 70-1500 Hz (guitare 6 cordes)
+
+- **Fenêtre de Hann** : Réduction effets de bord
+  - Pratique DSP standard
+  - w(n) = 0.5 × (1 - cos(2πn/(N-1)))
+
+- **Interpolation parabolique** : Précision sub-échantillon
+  - Améliore la détection du pic d'autocorrélation
+  - Gain : ~5 cents vs 10-20 cents sans interpolation
 
 ---
 

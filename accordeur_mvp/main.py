@@ -6,10 +6,20 @@ Application complète combinant l'analyse de fichiers WAV et l'enregistrement
 en direct via microphone.
 
 Références cours EPHEC - Signaux III :
-- Chapitre 2 : Transformée de Fourier (p.38-57) - FFT et Wiener-Khinchin
-- Chapitre 5 : Filtres numériques (p.145-156) - Butterworth
-- Chapitre 6 : Échantillonnage (p.166-177) - Théorème de Shannon-Nyquist
-- Chapitre 7 : Analyse spectrale (p.188-202) - Autocorrélation
+- Chapitre 6 (p.165-166) : Théorème de Shannon-Nyquist → Justifie Fs = 48 kHz
+- Chapitre 7 (p.184-188) : FFT Cooley-Tukey → Optimise calcul autocorrélation
+- Chapitre 5 (p.156)     : Convolution → Principe du filtrage numérique
+
+Extensions pratiques (hors cours) appliquées au projet :
+- Autocorrélation : Application de la FFT pour détecter la périodicité du signal
+- Filtre Butterworth passe-bande : Filtre standard en traitement audio
+- Fenêtre de Hann : Réduction des effets de bord (pratique DSP)
+- Interpolation parabolique : Améliore la précision de détection (sub-échantillon)
+
+Architecture :
+- Module pitch_detector : Détection f₀ par autocorrélation optimisée (FFT)
+- Module music_utils : Conversions Hz ↔ Note + calcul cents
+- Interface unifiée : 2 modes (enregistrement live + analyse fichiers WAV)
 
 Usage :
     python main.py
@@ -28,8 +38,8 @@ from datetime import datetime
 # Ajouter src au path pour imports
 sys.path.insert(0, 'src')
 
-from pitch_detector import detect_f0, FS
-from music_utils import identify_string, get_tuning_status
+from src.pitch_detector import detect_f0, FS
+from src.music_utils import identify_string, get_tuning_status
 
 
 # =============================================================================
@@ -37,7 +47,8 @@ from music_utils import identify_string, get_tuning_status
 # =============================================================================
 
 # Paramètres d'enregistrement
-# Reference: Course Chapter 6, p.166-167 (Shannon-Nyquist theorem: Fs >= 2*fmax)
+# Reference: Course Chapter 6, p.165-166 (Shannon-Nyquist theorem: Fs >= 2*fmax)
+# Justification: fmax_guitar ≈ 1500 Hz → Fs_min = 3000 Hz → 48 kHz (marge ×16)
 SAMPLE_RATE = FS          # 48000 Hz
 CHANNELS = 1              # Mono
 DTYPE = 'float32'         # Type de données audio
@@ -46,108 +57,10 @@ FRAME_SIZE = 4096         # Taille fenêtre pour analyse (~85 ms à 48 kHz)
 
 
 # =============================================================================
-# MODE 1 : ENREGISTREMENT EN DIRECT
+# MODE 1 : ENREGISTREMENT EN DIRECT (Méthode synchrone sd.rec)
 # =============================================================================
-
-class RecordingSession:
-    """
-    Gère une session d'enregistrement audio en temps réel.
-
-    Le signal est capturé via sounddevice et stocké en mémoire
-    pour analyse ultérieure.
-
-    Attributes
-    ----------
-    fs : int
-        Fréquence d'échantillonnage (48000 Hz)
-        Reference: Course Chapter 6, p.166 (Shannon-Nyquist)
-    channels : int
-        Nombre de canaux (1 = mono)
-    recording : list of ndarray
-        Blocs audio capturés
-    """
-
-    def __init__(self, fs=SAMPLE_RATE, channels=CHANNELS):
-        """
-        Initialise la session d'enregistrement.
-
-        Parameters
-        ----------
-        fs : int
-            Fréquence d'échantillonnage (défaut: 48000 Hz)
-        channels : int
-            Nombre de canaux (défaut: 1 = mono)
-        """
-        self.fs = fs
-        self.channels = channels
-        self.recording = []
-        self.is_recording = False
-
-    def callback(self, indata, frames, time, status):
-        """
-        Callback appelé automatiquement à chaque bloc audio capturé.
-
-        Cette fonction est exécutée dans un thread séparé par sounddevice.
-        Elle accumule les blocs audio dans self.recording.
-
-        Parameters
-        ----------
-        indata : ndarray
-            Données audio captées (shape: [frames, channels])
-        frames : int
-            Nombre de frames dans ce bloc
-        time : CData
-            Timestamp du bloc
-        status : CallbackFlags
-            Status du stream (erreurs éventuelles)
-        """
-        if status:
-            print(f"⚠️  {status}", file=sys.stderr)
-
-        # Ajouter les données à l'enregistrement
-        self.recording.append(indata.copy())
-
-    def start(self):
-        """
-        Démarre l'enregistrement audio.
-
-        Crée un InputStream sounddevice avec les paramètres configurés.
-        Le callback est appelé automatiquement pour chaque bloc.
-        """
-        self.recording = []
-        self.is_recording = True
-        self.stream = sd.InputStream(
-            samplerate=self.fs,
-            channels=self.channels,
-            dtype=DTYPE,
-            callback=self.callback
-        )
-        self.stream.start()
-
-    def stop(self):
-        """
-        Arrête l'enregistrement et retourne le signal complet.
-
-        Returns
-        -------
-        signal : ndarray
-            Signal audio enregistré (1D si mono)
-        """
-        self.is_recording = False
-        self.stream.stop()
-        self.stream.close()
-
-        # Concaténer tous les blocs capturés
-        if self.recording:
-            signal = np.concatenate(self.recording, axis=0)
-
-            # Convertir en 1D si mono
-            if signal.ndim == 2 and signal.shape[1] == 1:
-                signal = signal[:, 0]
-
-            return signal
-        else:
-            return np.array([])
+# Note: Utilise sd.rec() au lieu de InputStream + callback
+#       Plus simple, plus fiable, inspiré du code GUI qui fonctionne
 
 
 def sauvegarder_enregistrement(signal, fs=SAMPLE_RATE, dossier='enregistrements'):
@@ -228,15 +141,23 @@ def analyser_enregistrement(signal, fs=SAMPLE_RATE, nom_fichier=None):
         print("      Veuillez jouer la corde plus longtemps")
         return
 
-    # Vérifier le niveau sonore (RMS)
+    # Vérifier le niveau sonore (méthode optimisée)
+    # Utilise la norme L2 (similaire à votre code qui fonctionne)
+    niveau = np.linalg.norm(signal) * 10 / len(signal)
     rms = np.sqrt(np.mean(signal ** 2))
     print(f"   • Niveau RMS : {rms:.4f}")
+    print(f"   • Niveau normalisé : {niveau:.4f}")
 
-    if rms < 0.001:
+    # Seuil plus réaliste basé sur votre code qui fonctionne
+    if niveau < 0.0005 or rms < 0.0001:
         print()
-        print("   ⚠️  Signal très faible !")
-        print("      Vérifiez que le micro fonctionne et que vous jouez assez fort")
+        print("   ⚠️  Signal très faible (presque silence) !")
+        print("      Conseils :")
+        print("      • Vérifiez que le BON micro est sélectionné")
+        print("      • Jouez BEAUCOUP plus fort")
+        print("      • Rapprochez le micro à 10-15 cm de la guitare")
         print()
+        return  # Arrêter l'analyse si signal trop faible
 
     print()
     print("   Analyse de plusieurs fenêtres :")
@@ -347,11 +268,45 @@ def mode_enregistrement():
     print("=" * 60)
     print()
 
-    # Vérifier les périphériques audio
+    # Détecter et afficher les micros disponibles
+    device_id = None
     try:
-        default_input = sd.query_devices(kind='input')
-        print("🎤 Micro détecté :")
-        print(f"   {default_input['name']}")
+        devices = sd.query_devices()
+        input_devices = [(i, dev) for i, dev in enumerate(devices) if dev['max_input_channels'] > 0]
+
+        if not input_devices:
+            print("❌ Erreur : Aucun micro détecté")
+            print()
+            return
+
+        print("🎤 Micros disponibles :")
+        for i, dev in input_devices:
+            marker = ""
+            # Préférer les devices WASAPI sur Windows
+            if 'wasapi' in dev['name'].lower():
+                marker = " ⭐ (WASAPI - recommandé)"
+                if device_id is None:
+                    device_id = i
+            print(f"   [{i}] {dev['name']}{marker}")
+
+        # Si pas de WASAPI trouvé, utiliser le premier micro
+        if device_id is None:
+            device_id = input_devices[0][0]
+            print(f"\n   → Micro par défaut sélectionné : ID {device_id}")
+        else:
+            print(f"\n   → Micro WASAPI auto-sélectionné : ID {device_id}")
+
+        # Option pour changer de micro
+        print()
+        reponse = input("Utiliser un autre micro ? (Tapez le numéro, ou Entrée pour continuer) : ").strip()
+        if reponse.isdigit():
+            new_id = int(reponse)
+            if any(i == new_id for i, _ in input_devices):
+                device_id = new_id
+                print(f"✓ Micro {device_id} sélectionné")
+            else:
+                print("⚠️  ID invalide, utilisation du micro par défaut")
+
         print()
     except Exception as e:
         print(f"❌ Erreur : Impossible de détecter le micro")
@@ -359,33 +314,47 @@ def mode_enregistrement():
         print()
         return
 
-    # Créer la session d'enregistrement
-    session = RecordingSession(fs=SAMPLE_RATE)
+    # Configuration de l'enregistrement
+    duree_enregistrement = 4  # secondes (assez pour capturer le son d'une corde)
 
     print("📝 INSTRUCTIONS :")
     print("   1. Appuyez sur Entrée pour DÉMARRER l'enregistrement")
-    print("   2. Jouez UNE corde de guitare (laissez sonner ~2 secondes)")
-    print("   3. Appuyez à nouveau sur Entrée pour ARRÊTER")
+    print(f"   2. Jouez UNE corde de guitare (enregistrement {duree_enregistrement}s)")
+    print("   3. L'enregistrement s'arrêtera automatiquement")
     print()
 
     input("Appuyez sur Entrée pour démarrer l'enregistrement...")
 
-    # Démarrer l'enregistrement
-    session.start()
     print()
     print("🔴 ENREGISTREMENT EN COURS...")
-    print("   (Jouez une corde, puis appuyez sur Entrée)")
+    print(f"   Jouez une corde maintenant ! ({duree_enregistrement}s)")
     print()
 
+    # Enregistrement synchrone (bloquant) - MÉTHODE SIMPLE QUI FONCTIONNE
     try:
-        input()  # Attendre que l'utilisateur appuie sur Entrée
-    except KeyboardInterrupt:
-        print("\n⚠️  Interruption par l'utilisateur")
+        n_samples = int(duree_enregistrement * SAMPLE_RATE)
+        recording = sd.rec(
+            n_samples,
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            dtype='float64',
+            device=device_id  # KEY FIX: Device explicite
+        )
+        sd.wait()  # Attendre la fin de l'enregistrement
 
-    # Arrêter l'enregistrement
-    print()
-    print("⏹️  Arrêt de l'enregistrement...")
-    signal = session.stop()
+        # Convertir en 1D si nécessaire
+        if recording.ndim == 2:
+            signal = recording[:, 0]
+        else:
+            signal = recording
+
+        print("⏹️  Enregistrement terminé !")
+        print()
+
+    except Exception as e:
+        print(f"❌ Erreur lors de l'enregistrement : {e}")
+        print()
+        return
 
     if len(signal) == 0:
         print("❌ Aucun signal enregistré")
@@ -656,10 +625,13 @@ def afficher_menu_principal():
     print("Cours : Signaux III - EPHEC")
     print()
     print("Références académiques :")
-    print("  • Chap. 2 p.52  : Théorème de Wiener-Khinchin (FFT)")
-    print("  • Chap. 5 p.150 : Filtre Butterworth passe-bande")
-    print("  • Chap. 6 p.166 : Théorème de Shannon-Nyquist (Fs=48kHz)")
-    print("  • Chap. 7 p.195 : Autocorrélation pour détection f₀")
+    print("  • Chap. 6 p.165 : Shannon-Nyquist → Fs = 48 kHz")
+    print("  • Chap. 7 p.184 : FFT Cooley-Tukey → Optimisation ACF")
+    print("  • Chap. 5 p.156 : Convolution → Principe filtrage")
+    print()
+    print("Extensions pratiques (hors cours) :")
+    print("  • Autocorrélation via FFT pour périodicité")
+    print("  • Butterworth passe-bande (70-1500 Hz)")
     print()
     print("=" * 60)
     print()

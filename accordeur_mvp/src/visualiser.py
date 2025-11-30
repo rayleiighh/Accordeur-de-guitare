@@ -13,13 +13,18 @@ Date : Novembre 2025
 """
 
 import sys
+import os
+from pathlib import Path
+from typing import List, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 import soundfile as sf
-import os
 
-# Ajouter src au path
-sys.path.insert(0, 'src')
+# Ajouter src au path (toujours relatif au dossier accordeur_mvp/)
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / "src"))
+RAW_DIR = BASE_DIR / "data" / "raw"
+ENREG_DIR = BASE_DIR / "data" / "enregistrements"
 
 from pitch_detector import detect_f0, preprocess_signal
 from music_utils import identify_string
@@ -206,6 +211,51 @@ def analyze_harmonics(signal, fs, f0):
     plt.tight_layout()
 
 
+def choisir_fichier_wav() -> Optional[Tuple[Path, str]]:
+    """
+    Permet de choisir un fichier WAV dans data/raw ou data/enregistrements.
+    Retourne (chemin, label_dossier) ou None si aucun choix valide.
+    """
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    ENREG_DIR.mkdir(parents=True, exist_ok=True)
+    alt_enreg = BASE_DIR / "data" / "enregistrement"  # tolère dossier sans 's'
+    alt_enreg.mkdir(parents=True, exist_ok=True)
+
+    fichiers: List[Tuple[Path, str]] = []
+    sources = [
+        (RAW_DIR, "data/raw"),
+        (ENREG_DIR, "data/enregistrements"),
+        ]
+    for dossier, label in sources:
+        fichiers += [(p, label) for p in sorted(dossier.glob("*.wav"))]
+
+    if not fichiers:
+        print(f"? Aucun fichier WAV trouvé dans {RAW_DIR} ni {ENREG_DIR}")
+        print("  -> Ajoutez au moins un fichier WAV pour visualiser la FFT")
+        return None
+
+    print("Fichiers disponibles :")
+    for idx, (path, label) in enumerate(fichiers, 1):
+        print(f"  {idx}. {path.name} ({label})")
+    print()
+
+    choix_str = input("Choisissez un fichier (Entrée = 1) : ").strip()
+    if choix_str == "":
+        choix = 1
+    else:
+        try:
+            choix = int(choix_str)
+        except ValueError:
+            print("? Entrée invalide")
+            return None
+
+    if not (1 <= choix <= len(fichiers)):
+        print("? Sélection hors plage")
+        return None
+
+    return fichiers[choix - 1]
+
+
 # =============================================================================
 # FONCTION PRINCIPALE
 # =============================================================================
@@ -219,29 +269,17 @@ def main():
     print("VISUALISATION FFT - Accordeur de Guitare")
     print("=" * 60)
     print()
-    
-    # Dossier des fichiers
-    data_dir = os.path.join('data', 'raw')
-    
-    if not os.path.exists(data_dir):
-        print(f"❌ Dossier introuvable : {data_dir}")
+
+    selection = choisir_fichier_wav()
+    if selection is None:
         return
-    
-    # Chercher le premier fichier WAV
-    fichiers_wav = [f for f in os.listdir(data_dir) if f.endswith('.wav')]
-    
-    if not fichiers_wav:
-        print(f"❌ Aucun fichier WAV trouvé dans {data_dir}")
-        return
-    
-    # Prendre le premier fichier
-    filepath = os.path.join(data_dir, fichiers_wav[0])
-    
-    print(f"📁 Analyse du fichier : {fichiers_wav[0]}")
+
+    filepath, label = selection
+    print(f"?? Analyse du fichier : {filepath.name} ({label})")
     print()
-    
+
     # Charger le signal
-    signal, fs = sf.read(filepath)
+    signal, fs = sf.read(str(filepath))
     
     # Convertir en mono si nécessaire
     if signal.ndim == 2:
@@ -256,7 +294,7 @@ def main():
     
     # 1. Analyse FFT basique
     print("1. Spectre FFT du signal...")
-    plot_fft_analysis(frame, fs, f"FFT - {fichiers_wav[0]}")
+    plot_fft_analysis(frame, fs, f"FFT - {filepath.name}")
     
     # 2. Comparaison avant/après filtrage
     print("2. Comparaison avant/après filtrage...")
@@ -300,3 +338,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+

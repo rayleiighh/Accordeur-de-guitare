@@ -72,7 +72,26 @@ pip install -r requirements.txt
 - `scipy` : Filtres (Butterworth, notch)
 - `soundfile` : Lecture/écriture fichiers WAV
 - `sounddevice` : Capture audio microphone
-- `matplotlib` : Visualisations (optionnel)
+- `matplotlib` : Visualisations (FFT/oscillo)
+- `customtkinter` : GUI moderne (main_gui.py)
+
+---
+
+## 🎛️ Lancer l'application
+
+### Mode menu CLI (historique)
+```bash
+cd accordeur_mvp
+python main.py
+```
+
+### Mode GUI (CustomTkinter, dark)
+```bash
+cd accordeur_mvp
+python main_gui.py
+```
+- Features : enregistrement 4s (Espace), analyse fichiers `data/raw` + `data/enregistrements`, oscilloscope temps réel, jauge cents, graphes temps + spectre (zoom guitare).
+- Raccourcis : Ctrl+R (rafraîchir liste), Entrée (analyser), Espace (enregistrer), Échap (quitter).
 
 ---
 

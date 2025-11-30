@@ -150,6 +150,8 @@ class TunerGUI(ctk.CTk):
         self.button_analyze.grid(row=2, column=0, padx=8, pady=4, sticky="ew")
         self.button_record = ctk.CTkButton(ctrl, text="Enregistrer 4s (Espace)", command=self.record_and_analyze)
         self.button_record.grid(row=3, column=0, padx=8, pady=4, sticky="ew")
+        self.button_scope = ctk.CTkButton(ctrl, text="Oscillo temps réel", command=self.toggle_scope)
+        self.button_scope.grid(row=4, column=0, padx=8, pady=4, sticky="ew")
 
         # info (freq + device)
         info = ctk.CTkFrame(bottom, fg_color=COLORS["panel"])
@@ -178,6 +180,11 @@ class TunerGUI(ctk.CTk):
         self.canvas = FigureCanvasTkAgg(fig, master=plot_frame)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
         self.fig = fig
+        # oscillo live buffer
+        self._scope_running = False
+        self._scope_buffer = np.zeros(FS // 2)
+        self._scope_lock = threading.Lock()
+        self._scope_stream = None
 
     def _bind_shortcuts(self) -> None:
         self.bind("<Control-r>", lambda e: self.refresh_file_list())
@@ -252,6 +259,8 @@ class TunerGUI(ctk.CTk):
         self.label_file.configure(text=self.label_file.cget("text"))
 
     def _plot(self, frame: np.ndarray, fs: int) -> None:
+        if self._scope_running:
+            return
         self.ax_time.clear()
         self.ax_freq_full.clear()
         self.ax_freq_zoom.clear()
@@ -292,10 +301,10 @@ class TunerGUI(ctk.CTk):
             if len(peaks_idx) > 0:
                 sorted_idx = peaks_idx[np.argsort(mag_db[peaks_idx])[::-1]]
                 for idx in sorted_idx[:5]:
-                    f = fft_freqs[idx]
-                    m = mag_db[idx]
+                    f = float(fft_freqs[idx])
+                    m = float(mag_db[idx])
                     self.ax_freq_zoom.annotate(
-                        f"{f:.1f} Hz", xy=(f, m), xytext=(f, m + 6),
+                        f"{f:.1f} Hz", xy=(f, m), xytext=(f, m + 6.0),
                         color=COLORS["text_secondary"],
                         arrowprops=dict(arrowstyle="->", color=COLORS["text_secondary"], lw=0.6),
                         fontsize=8,
@@ -306,6 +315,8 @@ class TunerGUI(ctk.CTk):
 
     # Actions -------------------------------------------------------------
     def analyze_signal(self, signal: np.ndarray, fs: int) -> None:
+        # arrêter oscillo live pour libérer l'axe temps
+        self._stop_scope()
         if len(signal) < FRAME_SIZE:
             self._update_display(None, None, None, "none")
             return
@@ -331,6 +342,79 @@ class TunerGUI(ctk.CTk):
         signal, fs = load_wav(file)
         self.analyze_signal(signal, fs)
         self.label_file.configure(text=f"Fichier: {file.name}")
+
+    # --- Oscilloscope live ----------------------------------------------
+    def _scope_callback(self, indata, frames, time, status) -> None:  # type: ignore[override]
+        data = indata[:, 0] if indata.ndim == 2 else indata
+        with self._scope_lock:
+            buf = np.concatenate([self._scope_buffer, data])
+            # garder 0.5 s
+            max_len = FS // 2
+            if buf.size > max_len:
+                buf = buf[-max_len:]
+            self._scope_buffer = buf
+
+    def _update_scope(self) -> None:
+        if not self._scope_running:
+            return
+        with self._scope_lock:
+            buf = self._scope_buffer.copy()
+        if buf.size == 0:
+            self.after(80, self._update_scope)
+            return
+        t = np.arange(buf.size) / FS
+        self.ax_time.clear()
+        self.ax_time.plot(t, buf, color=COLORS["text_secondary"])
+        self.ax_time.set_xlim(t[0], t[-1])
+        self.ax_time.set_title("Oscilloscope (live)", color=COLORS["text"], fontsize=10)
+        self.ax_time.set_xlabel("Temps (s)", color=COLORS["text_secondary"])
+        self.ax_time.set_ylabel("Amplitude", color=COLORS["text_secondary"])
+        self.ax_time.tick_params(colors=COLORS["text_secondary"])
+        self.ax_time.grid(alpha=0.2)
+        self.fig.tight_layout()
+        self.canvas.draw()
+        self.after(80, self._update_scope)
+
+    def _stop_scope(self) -> None:
+        if not getattr(self, "_scope_running", False):
+            return
+        self._scope_running = False
+        if self._scope_stream is not None:
+            try:
+                self._scope_stream.stop()
+                self._scope_stream.close()
+            except Exception:
+                pass
+            self._scope_stream = None
+        self.button_scope.configure(text="Oscillo temps réel")
+        self.label_status.configure(text="Oscillo arrêté", text_color=COLORS["text_secondary"])
+
+    def _start_scope(self) -> None:
+        self._stop_scope()
+        self._scope_buffer = np.zeros(FS // 2)
+        try:
+            stream = sd.InputStream(
+                samplerate=FS,
+                channels=1,
+                callback=self._scope_callback,
+                blocksize=1024,
+            )
+            stream.start()
+            self._scope_stream = stream
+            self._scope_running = True
+            self.button_scope.configure(text="Arrêter oscillo")
+            self.label_status.configure(text="Oscilloscope en cours...", text_color=COLORS["text_secondary"])
+            self._update_scope()
+        except Exception as e:
+            self.label_status.configure(text=f"Oscillo indisponible : {e}", text_color=COLORS["haut"])
+            self._scope_running = False
+            self._scope_stream = None
+
+    def toggle_scope(self) -> None:
+        if getattr(self, "_scope_running", False):
+            self._stop_scope()
+        else:
+            self._start_scope()
 
     # --- Recording with blinking indicator -------------------------------
     def _blink_rec(self) -> None:
@@ -365,11 +449,13 @@ class TunerGUI(ctk.CTk):
         self.label_device.configure(text=f"Device: {sd.default.device}")
         self.label_status.configure(text=f"Fichier sauvegardé : {filepath.name}", text_color=COLORS["text"])
         self.label_file.configure(text=f"Fichier: {filepath.name}")
+        self.label_rec.configure(text="")
         self.analyze_signal(signal, FS)
 
     def record_and_analyze(self) -> None:
         if getattr(self, "_rec_running", False):
             return
+        self._stop_scope()
         duration = 4.0
         n_samples = int(duration * FS)
         self._rec_running = True
@@ -381,3 +467,4 @@ class TunerGUI(ctk.CTk):
 if __name__ == "__main__":
     app = TunerGUI()
     app.mainloop()
+

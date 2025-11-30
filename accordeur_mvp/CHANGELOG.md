@@ -9,6 +9,7 @@
 - ✅ Création script d'évaluation automatique `eval_pitch.py`
 - ✅ Interface unifiée `main.py` (menu principal)
 - ✅ Gestion erreurs robuste (micro, fichiers manquants)
+- ✅ Nouvelle GUI `main_gui.py` (CustomTkinter) : mode sombre, oscilloscope temps réel, graphes intégrés, enregistrement 4s, jauge cents
 
 #### **Documentation**
 - ✅ `requirements.txt` créé avec dépendances exactes

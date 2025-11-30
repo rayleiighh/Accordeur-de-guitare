@@ -88,8 +88,9 @@ def plot_fft_analysis(signal, fs, title="Analyse FFT"):
         
         # Annoter les 5 premiers pics
         for i, idx in enumerate(sorted_idx[:5]):
-            freq = freqs[idx]
-            mag = magnitude_db[idx]
+            # Convertir explicitement en float pour satisfaire l'analyse statique
+            freq = float(freqs[idx])
+            mag = float(magnitude_db[idx])
             plt.annotate(f'{freq:.1f} Hz', 
                         xy=(freq, mag),
                         xytext=(freq + 50, mag - 5),

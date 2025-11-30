@@ -21,7 +21,7 @@ Date : Novembre 2025
 
 import numpy as np
 from scipy import signal as scipy_signal
-from typing import Optional
+from typing import Optional, Tuple, cast
 
 
 # =============================================================================
@@ -80,7 +80,7 @@ def preprocess_signal(signal: np.ndarray, fs: int = FS, enable_notch: bool = Tru
     nyquist = fs / 2.0
     low = 70.0 / nyquist
     high = 1500.0 / nyquist
-    b, a = scipy_signal.butter(4, [low, high], btype='bandpass')
+    b, a = cast(Tuple[np.ndarray, np.ndarray], scipy_signal.butter(4, [low, high], btype='bandpass'))
     filtered = scipy_signal.filtfilt(b, a, signal)
 
     # 3. Fenêtrage (Hann)

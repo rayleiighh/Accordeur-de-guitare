@@ -30,10 +30,12 @@ Date : Novembre 2025
 
 import sys
 import os
+from pathlib import Path
 import numpy as np
 import soundfile as sf
 import sounddevice as sd
 from datetime import datetime
+from typing import Any, Dict, List, Mapping, Tuple, cast
 
 # Ajouter src au path pour imports
 sys.path.insert(0, 'src')
@@ -54,6 +56,7 @@ CHANNELS = 1              # Mono
 DTYPE = 'float32'         # Type de données audio
 FRAME_SIZE = 4096         # Taille fenêtre pour analyse (~85 ms à 48 kHz)
                           # Reference: Course Chapter 7, p.190 (time-freq resolution)
+ENREG_DIR = Path(__file__).resolve().parent / "data" / "enregistrements"
 
 
 # =============================================================================
@@ -63,36 +66,35 @@ FRAME_SIZE = 4096         # Taille fenêtre pour analyse (~85 ms à 48 kHz)
 #       Plus simple, plus fiable, inspiré du code GUI qui fonctionne
 
 
-def sauvegarder_enregistrement(signal, fs=SAMPLE_RATE, dossier='enregistrements'):
+
+def sauvegarder_enregistrement(signal, fs=SAMPLE_RATE, dossier: Path = ENREG_DIR):
     """
     Sauvegarde l'enregistrement dans un fichier WAV avec timestamp.
 
     Parameters
     ----------
     signal : ndarray
-        Signal audio à sauvegarder
+        Signal audio a sauvegarder
     fs : int
-        Fréquence d'échantillonnage
-    dossier : str
-        Dossier de destination (créé si inexistant)
+        Frequence d'echantillonnage
+    dossier : Path
+        Dossier de destination (cree si inexistant)
 
     Returns
     -------
     filepath : str
-        Chemin complet du fichier sauvegardé
+        Chemin complet du fichier sauvegarde
     """
-    # Créer le dossier s'il n'existe pas
-    os.makedirs(dossier, exist_ok=True)
+    dossier = Path(dossier)
+    dossier.mkdir(parents=True, exist_ok=True)
 
-    # Nom du fichier avec timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"enreg_{timestamp}.wav"
-    filepath = os.path.join(dossier, filename)
+    filepath = dossier / filename
 
-    # Sauvegarder au format WAV
-    sf.write(filepath, signal, fs)
+    sf.write(str(filepath), signal, fs)
 
-    return filepath
+    return str(filepath)
 
 
 def analyser_enregistrement(signal, fs=SAMPLE_RATE, nom_fichier=None):
@@ -271,8 +273,15 @@ def mode_enregistrement():
     # Détecter et afficher les micros disponibles
     device_id = None
     try:
-        devices = sd.query_devices()
-        input_devices = [(i, dev) for i, dev in enumerate(devices) if dev['max_input_channels'] > 0]
+        # Cast explicite vers un Mapping pour éviter les warnings Pylance
+        devices_raw = sd.query_devices()
+        devices: List[Dict[str, Any]] = []
+        for dev_obj in devices_raw:
+            dev_map: Mapping[str, Any] = cast(Mapping[str, Any], dev_obj)
+            devices.append({str(k): v for k, v in dev_map.items()})
+        input_devices: List[Tuple[int, Dict[str, Any]]] = [
+            (i, dev) for i, dev in enumerate(devices) if dev.get('max_input_channels', 0) > 0
+        ]
 
         if not input_devices:
             print("❌ Erreur : Aucun micro détecté")
@@ -713,3 +722,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

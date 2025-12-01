@@ -8,7 +8,7 @@ l'utilisation de la transformée de Fourier dans le projet.
 Usage :
     python visualiser.py [--file chemin.wav]
 
-Auteur : Projet Signaux III - EPHEC
+Auteurs : El Mazani, Ben Lhaj, Zebiri, Nzeyimana (Groupe 7)
 Date : Novembre 2025
 """
 
@@ -219,14 +219,12 @@ def choisir_fichier_wav() -> Optional[Tuple[Path, str]]:
     """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     ENREG_DIR.mkdir(parents=True, exist_ok=True)
-    alt_enreg = BASE_DIR / "data" / "enregistrement"  # tolère dossier sans 's'
-    alt_enreg.mkdir(parents=True, exist_ok=True)
 
     fichiers: List[Tuple[Path, str]] = []
     sources = [
         (RAW_DIR, "data/raw"),
         (ENREG_DIR, "data/enregistrements"),
-        ]
+    ]
     for dossier, label in sources:
         fichiers += [(p, label) for p in sorted(dossier.glob("*.wav"))]
 

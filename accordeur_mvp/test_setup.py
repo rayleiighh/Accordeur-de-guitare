@@ -7,7 +7,7 @@ Verifie que tout est correctement installe et configure avant la presentation.
 Usage :
     python test_setup.py
 
-Auteur : Projet Signaux III - EPHEC
+Auteurs : El Mazani, Ben Lhaj, Zebiri, Nzeyimana (Groupe 7)
 Date : Novembre 2025
 """
 

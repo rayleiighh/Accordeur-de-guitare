@@ -22,7 +22,7 @@ Sortie :
     - resultats/resultats_evaluation.csv (par fichier)
     - resultats/resume_global.txt (statistiques agrégées)
 
-Auteur : Projet Signaux III - EPHEC
+Auteurs : El Mazani, Ben Lhaj, Zebiri, Nzeyimana (Groupe 7)
 Date : Novembre 2025
 """
 

@@ -5,8 +5,8 @@ Détecteur de fréquence fondamentale (f₀) - VERSION MVP
 Implémentation minimale d'un accordeur de guitare basé sur l'autocorrélation.
 
 Références cours EPHEC - Signaux III :
-- Chapitre 6 (p.165-166) : Théorème de Shannon-Nyquist → Justifie Fs = 48 kHz
-- Chapitre 7 (p.184-188) : FFT Cooley-Tukey → Optimise calcul autocorrélation
+- Chapitre 6  : Théorème de Shannon-Nyquist → Justifie Fs = 48 kHz
+- Chapitre 7  : FFT Cooley-Tukey → Optimise calcul autocorrélation
 
 Extensions pratiques (hors cours) :
 - Autocorrélation : Application FFT pour détecter périodicité (f₀)
@@ -15,7 +15,7 @@ Extensions pratiques (hors cours) :
 - Filtre Butterworth : Filtre passe-bande standard (70-1500 Hz, ordre 4)
 - Fenêtre Hann : Réduction effets de bord (pratique DSP)
 
-Auteur : Projet Signaux III - EPHEC
+Auteurs : El Mazani, Ben Lhaj, Zebiri, Nzeyimana (Groupe 7)
 Date : Novembre 2025
 """
 
@@ -45,7 +45,7 @@ def preprocess_signal(signal: np.ndarray, fs: int = FS, enable_notch: bool = Tru
     Justification technique :
     - Filtre notch 50 Hz : Réduction bruit secteur 50/60 Hz (consignes projet)
     - Filtre passe-bande Butterworth (70-1500 Hz, ordre 4) :
-      * Principe : Convolution (Cours Chapitre 5 p.156)
+      * Principe : Convolution (Cours Chapitre 5)
       * Type Butterworth : Réponse plate en bande passante (standard audio)
       * Plage 70-1500 Hz : Couvre guitare 6 cordes (E2=82 Hz à E4=330 Hz + harmoniques)
     - Fenêtre de Hann : Réduction effets de bord et fuites spectrales (pratique DSP standard)
@@ -76,7 +76,7 @@ def preprocess_signal(signal: np.ndarray, fs: int = FS, enable_notch: bool = Tru
         signal = scipy_signal.filtfilt(b_notch, a_notch, signal)
 
     # 2. Filtre passe-bande (70-1500 Hz)
-    # Cours Chap. 5 p.150 : Butterworth = réponse plate
+    # Cours Chap. 5 : Butterworth = réponse plate
     nyquist = fs / 2.0
     low = 70.0 / nyquist
     high = 1500.0 / nyquist
@@ -84,7 +84,7 @@ def preprocess_signal(signal: np.ndarray, fs: int = FS, enable_notch: bool = Tru
     filtered = scipy_signal.filtfilt(b, a, signal)
 
     # 3. Fenêtrage (Hann)
-    # Cours Chap. 7 p.192 : réduit fuites spectrales
+    # Cours Chap. 7 : réduit fuites spectrales
     window = np.hanning(len(filtered))
     windowed = filtered * window
 
@@ -103,7 +103,7 @@ def autocorrelation(signal: np.ndarray) -> np.ndarray:
         R(τ) = Σ s(t) × s(t+τ)  [somme sur t de 0 à N-τ]
         r(τ) = R(τ) / R(0)      [normalisation par variance]
 
-    Implémentation optimisée via FFT (Cours Chapitre 7 p.184-188) :
+    Implémentation optimisée via FFT (Cours Chapitre 7) :
         R(τ) = IFFT(|FFT(s)|²)
 
     Justification :

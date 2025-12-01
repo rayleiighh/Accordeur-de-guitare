@@ -4,9 +4,9 @@ Utilitaires musicaux - VERSION MVP
 
 Conversions fréquence ↔ note et calcul d'écarts en cents.
 
-Référence cours : Chapitre 2 p.190 (gammes musicales)
+Référence cours : Chapitre 2 (gammes musicales)
 
-Auteur : Projet Signaux III - EPHEC
+Auteurs : El Mazani, Ben Lhaj, Zebiri, Nzeyimana (Groupe 7)
 Date : Novembre 2025
 """
 

@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import sys
 import threading
+import subprocess
+import tkinter.filedialog as fd
 from pathlib import Path
 from typing import Optional, Tuple, List
 
@@ -64,7 +66,7 @@ class TunerGUI(ctk.CTk):
         super().__init__()
         self.title("Accordeur de Guitare - GUI")
         self.configure(fg_color=COLORS["bg"])
-        self.geometry("960x720")
+        self.geometry("920x1000")
 
         RAW_DIR.mkdir(parents=True, exist_ok=True)
         ENREG_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,7 +135,7 @@ class TunerGUI(ctk.CTk):
         list_frame.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
         list_frame.grid_columnconfigure(0, weight=1)
         list_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(list_frame, text="Fichiers WAV (raw + enregistrements)", text_color=COLORS["text"]).grid(
+        ctk.CTkLabel(list_frame, text="Fichiers WAV (les dossiers raw + enregistrements)", text_color=COLORS["text"]).grid(
             row=0, column=0, padx=6, pady=(6, 0)
         )
         self.file_list = ctk.CTkTextbox(list_frame, height=200, fg_color="#1E1E2E", text_color=COLORS["text"])
@@ -144,28 +146,28 @@ class TunerGUI(ctk.CTk):
         ctrl.grid(row=0, column=1, sticky="nsew", padx=6, pady=6)
         ctrl.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(ctrl, text="Contrôles", text_color=COLORS["text"]).grid(row=0, column=0, pady=(6, 2))
-        self.button_refresh = ctk.CTkButton(ctrl, text="Rafraîchir (Ctrl+R)", command=self.refresh_file_list)
+        self.button_refresh = ctk.CTkButton(ctrl, text="Rafraîchir", command=self.refresh_file_list)
         self.button_refresh.grid(row=1, column=0, padx=8, pady=4, sticky="ew")
-        self.button_analyze = ctk.CTkButton(ctrl, text="Analyser sélection (Entrée)", command=self.analyze_selected)
+        self.button_analyze = ctk.CTkButton(ctrl, text="Analyser sélection", command=self.analyze_selected)
         self.button_analyze.grid(row=2, column=0, padx=8, pady=4, sticky="ew")
-        self.button_record = ctk.CTkButton(ctrl, text="Enregistrer 4s (Espace)", command=self.record_and_analyze)
+        self.button_record = ctk.CTkButton(ctrl, text="🔴 Enregistrer 4s", command=self.record_and_analyze)
         self.button_record.grid(row=3, column=0, padx=8, pady=4, sticky="ew")
         self.button_scope = ctk.CTkButton(ctrl, text="Oscillo temps réel", command=self.toggle_scope)
         self.button_scope.grid(row=4, column=0, padx=8, pady=4, sticky="ew")
+        self.button_visualiser = ctk.CTkButton(ctrl, text="Visualiser FFT (script)", command=self.launch_visualiser)
+        self.button_visualiser.grid(row=5, column=0, padx=8, pady=4, sticky="ew")
 
         # info (freq + device)
         info = ctk.CTkFrame(bottom, fg_color=COLORS["panel"])
         info.grid(row=0, column=2, sticky="nsew", padx=6, pady=6)
         info.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(info, text="Infos", text_color=COLORS["text"]).grid(row=0, column=0, pady=(6, 2))
+        ctk.CTkLabel(info, text="Informations", text_color=COLORS["text"]).grid(row=0, column=0, pady=(6, 2))
         self.label_freq = ctk.CTkLabel(info, text="Freq: -- Hz", text_color=COLORS["text_secondary"], anchor="w")
         self.label_freq.grid(row=1, column=0, sticky="w", padx=8)
         self.label_cents = ctk.CTkLabel(info, text="Cents: --", text_color=COLORS["text_secondary"], anchor="w")
         self.label_cents.grid(row=2, column=0, sticky="w", padx=8)
         self.label_file = ctk.CTkLabel(info, text="Fichier: --", text_color=COLORS["text_secondary"], anchor="w")
         self.label_file.grid(row=3, column=0, sticky="w", padx=8)
-        self.label_device = ctk.CTkLabel(info, text="Device: défaut", text_color=COLORS["text_secondary"], anchor="w")
-        self.label_device.grid(row=4, column=0, sticky="w", padx=8)
 
         # plot area
         plot_frame = ctk.CTkFrame(self, fg_color=COLORS["panel"])
@@ -189,15 +191,15 @@ class TunerGUI(ctk.CTk):
     def _bind_shortcuts(self) -> None:
         self.bind("<Control-r>", lambda e: self.refresh_file_list())
         self.bind("<Control-R>", lambda e: self.refresh_file_list())
-        self.bind("<Return>", lambda e: self.analyze_selected())
-        self.bind("<space>", lambda e: self.record_and_analyze())
         self.bind("<Escape>", lambda e: self.destroy())
 
     # Data ----------------------------------------------------------------
     def refresh_file_list(self) -> None:
         files: List[Tuple[Path, str]] = []
         for folder, label in [(RAW_DIR, "raw"), (ENREG_DIR, "enregistrements")]:
-            files += [(p, label) for p in sorted(folder.glob("*.wav"))]
+            files += [(p, label) for p in folder.glob("*.wav")]
+        # trier par date décroissante (plus récents en haut)
+        files.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
 
         self.files = files
         self.file_list.configure(state="normal")
@@ -343,6 +345,27 @@ class TunerGUI(ctk.CTk):
         self.analyze_signal(signal, fs)
         self.label_file.configure(text=f"Fichier: {file.name}")
 
+    def launch_visualiser(self) -> None:
+        """Lance le script visualiser.py dans un processus séparé."""
+        try:
+            self._stop_scope()
+            initial = BASE_DIR / "data" / "enregistrements"
+            if not initial.exists():
+                initial = BASE_DIR / "data" / "raw"
+            filepath = fd.askopenfilename(
+                initialdir=str(initial),
+                title="Choisir un fichier WAV",
+                filetypes=[("WAV files", "*.wav")],
+            )
+            if not filepath:
+                self.label_status.configure(text="Visualiser annulé", text_color=COLORS["text_secondary"])
+                return
+            cmd = [sys.executable, str(BASE_DIR / "src" / "visualiser.py"), "--file", filepath]
+            subprocess.Popen(cmd, cwd=BASE_DIR)
+            self.label_status.configure(text="Visualiser lancé", text_color=COLORS["text_secondary"])
+        except Exception as e:
+            self.label_status.configure(text=f"Erreur visualiser: {e}", text_color=COLORS["haut"])
+
     # --- Oscilloscope live ----------------------------------------------
     def _scope_callback(self, indata, frames, time, status) -> None:  # type: ignore[override]
         data = indata[:, 0] if indata.ndim == 2 else indata
@@ -446,7 +469,6 @@ class TunerGUI(ctk.CTk):
 
     def _post_record(self, signal: np.ndarray, filepath: Path) -> None:
         self.refresh_file_list()
-        self.label_device.configure(text=f"Device: {sd.default.device}")
         self.label_status.configure(text=f"Fichier sauvegardé : {filepath.name}", text_color=COLORS["text"])
         self.label_file.configure(text=f"Fichier: {filepath.name}")
         self.label_rec.configure(text="")
@@ -467,4 +489,3 @@ class TunerGUI(ctk.CTk):
 if __name__ == "__main__":
     app = TunerGUI()
     app.mainloop()
-

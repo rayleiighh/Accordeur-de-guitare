@@ -6,7 +6,7 @@ Ce script génère des visualisations FFT pour démontrer explicitement
 l'utilisation de la transformée de Fourier dans le projet.
 
 Usage :
-    python visualiser_fft.py
+    python visualiser.py [--file chemin.wav]
 
 Auteur : Projet Signaux III - EPHEC
 Date : Novembre 2025
@@ -14,6 +14,7 @@ Date : Novembre 2025
 
 import sys
 import os
+import argparse
 from pathlib import Path
 from typing import List, Optional, Tuple
 import numpy as np
@@ -264,17 +265,32 @@ def main():
     """
     Fonction principale : génère toutes les visualisations FFT.
     """
+    parser = argparse.ArgumentParser(description="Visualiser un fichier WAV (FFT + filtres).")
+    parser.add_argument("--file", "-f", type=str, help="Chemin du fichier WAV à analyser")
+    args = parser.parse_args()
+
     print()
     print("=" * 60)
     print("VISUALISATION FFT - Accordeur de Guitare")
     print("=" * 60)
     print()
 
-    selection = choisir_fichier_wav()
-    if selection is None:
-        return
+    filepath: Optional[Path] = None
+    label = ""
+    if args.file:
+        candidate = Path(args.file)
+        if candidate.exists() and candidate.suffix.lower() == ".wav":
+            filepath = candidate
+            label = "argument"
+        else:
+            print(f"? Fichier invalide : {candidate}")
+            return
+    else:
+        selection = choisir_fichier_wav()
+        if selection is None:
+            return
+        filepath, label = selection
 
-    filepath, label = selection
     print(f"?? Analyse du fichier : {filepath.name} ({label})")
     print()
 

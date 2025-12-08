@@ -17,7 +17,7 @@
 ✅ Calcul de l'écart en cents  
 ✅ Indication : juste / trop bas / trop haut  
 ✅ **Menu de sélection** de fichier (nouveau !)  
-✅ **Enregistrement en direct** via micro (nouveau !)
+✅ **Enregistrement en direct** via micro (nouveau !) 
 
 ---
 
